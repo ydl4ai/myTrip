@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>川甘陕长征游学之旅可视化地图</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Microsoft YaHei', sans-serif;
+            overflow: hidden;
+        }
+        #map-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        #info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            max-width: 300px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+        }
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 10px;
+            display: flex;
+            gap: 10px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+        }
+        button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+            transform: scale(1.05);
+        }
+        #progress-container {
+            position: absolute;
+            bottom: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            height: 10px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            z-index: 1000;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+        }
+        #progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            border-radius: 5px;
+            transition: width 0.5s;
+        }
+        #music-control {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0,0,0,0.3);
+            transition: all 0.3s;
+        }
+        #music-control:hover {
+            transform: scale(1.1);
+        }
+        .day-marker {
+            background-color: #ff3366;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            border: 3px solid white;
+            box-shadow: 0 0 0 0 rgba(255, 51, 102, 0.7);
+            transition: all 0.3s;
+        }
+        .active-day {
+            background-color: #00ccff !important;
+            box-shadow: 0 0 0 8px rgba(0, 204, 255, 0.5);
+            animation: pulse 2s infinite;
+            transform: scale(1.2);
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 204, 255, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(0, 204, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 204, 255, 0); }
+        }
+        .custom-popup .leaflet-popup-content-wrapper {
+            background-color: rgba(0, 0, 0, 0.9);
+            color: white;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        .custom-popup .leaflet-popup-content {
+            margin: 0;
+            width: 250px !important;
+        }
+        .custom-popup .leaflet-popup-tip {
+            background-color: rgba(0, 0, 0, 0.9);
+        }
+        .location-image {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .car-icon {
+            background-image: url('https://cdn-icons-png.flaticon.com/512/744/744515.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            width: 30px;
+            height: 30px;
+            position: absolute;
+            left: -15px;
+            top: -15px;
+            z-index: 1001;
+            filter: drop-shadow(0 0 5px rgba(0,0,0,0.7));
+            transform: rotate(0deg);
+            transition: transform 0.3s;
+        }
+        #day-title {
+            margin-top: 0;
+            color: #ffcc00;
+            font-size: 18px;
+            border-bottom: 1px solid #444;
+            padding-bottom: 8px;
+        }
+        .highlight-text {
+            color: #ff9966;
+            font-weight: bold;
+        }
+        #music-info {
+            position: absolute;
+            top: 70px;
+            right: 20px;
+            z-index: 1000;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            display: none;
+        }
+        #welcome-panel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2000;
+            background-color: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 600px;
+            width: 80%;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(0,0,0,0.7);
+        }
+        #welcome-panel h1 {
+            color: #ffcc00;
+            margin-top: 0;
+        }
+        #welcome-panel p {
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        #welcome-panel ul {
+            text-align: left;
+            margin: 20px 0;
+            padding-left: 20px;
+        }
+        #welcome-panel li {
+            margin-bottom: 10px;
+        }
+        #start-journey {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 12px 25px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        #start-journey:hover {
+            background-color: #45a049;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div id="map-container">
+        <div id="map"></div>
+        <div id="info-panel">
+            <h2 id="day-title">Day 1: 泸州 → 蜀南竹海</h2>
+            <p id="day-desc">游玩: 泸州老窖景区、蜀南竹海</p>
+            <p id="day-highlight">亮点: <span class="highlight-text">品白酒、竹海避暑</span></p>
+            <p id="day-distance">路程: <span class="highlight-text">100km/2h</span></p>
+        </div>
+        <div id="progress-container">
+            <div id="progress-bar"></div>
+        </div>
+        <div id="controls">
+            <button id="play-pause">暂停</button>
+            <button id="prev-day">上一天</button>
+            <button id="next-day">下一天</button>
+            <button id="reset">重置</button>
+        </div>
+        <div id="music-control" title="播放/暂停背景音乐">♪</div>
+        <div id="music-info">正在播放: 河西走廊之梦</div>
+        
+        <!-- 欢迎面板 -->
+        <div id="welcome-panel">
+            <h1>川甘陕长征游学之旅</h1>
+            <p style="font-size: 18px; font-style: italic; color: #ff9966;">
+                "从古蜀迷雾到草原星河，从羌寨碉楼到长安灯火，<br>
+                这是一场跨越时空的对话，更是少年心气的长征。"
+            </p>
+            
+            <h3>旅程意义与目的</h3>
+            <p>这是一次融合历史、文化与自然的深度体验之旅，沿着红军长征的部分路线，探寻中国西部的人文与自然奇观。</p>
+            
+            <ul>
+                <li><strong>红色教育</strong>：途经若尔盖草原、黄河九曲第一湾等长征路线，感受红军精神。</li>
+                <li><strong>文化溯源</strong>：探访三星堆、拉卜楞寺，触摸古蜀文明与藏传佛教文化。</li>
+                <li><strong>自然生态</strong>：川西草原、甘南秘境、秦岭风光，体验夏季避暑的绝佳路线。</li>
+                <li><strong>美食非遗</strong>：泸州老窖、宜宾燃面、宝鸡小吃，品味地道的西部风味。</li>
+            </ul>
+            
+            <button id="start-journey">开始旅程</button>
+        </div>
+    </div>
+
+    <audio id="bg-music" loop>
+        <!-- 更换为《河西走廊》纯音乐 -->
+        <source src="http://m701.music.126.net/20250621113548/a7ad249cc9fcb4e877669be74db6fa5f/jdymusic/obj/wo3DlMOGwrbDjj7DisKw/45561249690/fc82/fb90/eeb8/553c4686151ec8e95785fa58df5a40c2.mp3?vuutv=idRPdsFiiaqO8lpDfuSMEZZhUpIj675Jq7TDRJoziVxf0SJkwQh+Vcli+nYtjWd5N6zl2NqBaYRUhxknQjoQiMISo1rd/x9AdMT7TqxGOB/1oEMAtDBQ62t6tZYcUBcDNbRXm8Oab57VHsY3Zh0WE64bRY/8v8hdhNuyELJ4z2DhqcoGpZYjr+zAPw7AJFjTd8ugbBECQZZdyAMqBCTI2uE5nh7pnK1p90lwogHEfrhAKtk3HYT0YAwrAEGgDdDiDhu2StYFoaWMRzewQh3dU9d4kb0gHxa6V9N8kyA6cwlfjrSvXbMSY5+IEC3EKHH1G9QDQ/BYvaM/5E/leqsgOLI8hAsjrZpdwsF6a/AX0kPnwXRizy9GMmAhiyKwSEQb" type="audio/mpeg">
+    </audio>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        // 行程数据（从泸州开始）
+        const itinerary = [
+            {
+                day: 1,
+                title: "泸州 → 蜀南竹海",
+                desc: "游玩: 泸州老窖景区、蜀南竹海",
+                highlight: "品白酒、竹海避暑",
+                distance: "100km/2h",
+                coordinates: [28.89, 105.44], // 泸州
+                nextCoordinates: [28.68, 104.98], // 蜀南竹海
+                zoom: 10,
+                image: "https://mmbiz.qpic.cn/sz_mmbiz_jpg/fozzBKW37ia4dYqZA5rAzicuNjzuznoI1Ab6LuePSSfR2Vn0VwlsJtAGDb6rQic0zhuhUF4LqicwLPSn9DVRepPI1A/640?wx_fmt=jpeg&tp=wxpic&wxfrom=10005&wx_lazy=1" // 泸州老窖图片
+            },
+            {
+                day: 2,
+                title: "蜀南竹海 → 成都",
+                desc: "游玩: 竹海晨雾、宜宾燃面、宽窄巷子",
+                highlight: "学做燃面、成都夜生活",
+                distance: "300km/3h",
+                coordinates: [28.68, 104.98], // 蜀南竹海
+                nextCoordinates: [30.67, 104.06], // 成都
+                zoom: 8,
+                image: "https://wyw-pics.wxqcloud.qq.com.cn/businessType-6/2025/06/12/f54ae478-0728-4bfb-a8f6-26fc30a6246c/75d70fe1b4.jpg/750?sign=78c0431ada2cd9ddb4a8c693d0d89c82&t=1750471464" // 蜀南竹海图片
+            },
+            {
+                day: 3,
+                title: "成都 → 茂县",
+                desc: "游玩: 三星堆(提前预约!)、茂县羌城",
+                highlight: "青铜神树、羌族文化",
+                distance: "250km/5h",
+                coordinates: [30.67, 104.06], // 成都
+                nextCoordinates: [31.68, 103.85], // 茂县
+                zoom: 8,
+                image: "https://mmbiz.qpic.cn/sz_mmbiz_jpg/ToiaLOEGutp9WRlbLvrRW5oVkht2LqSlTKhlfo4z3sILuoTgdO7hpm6ahIt9n1FkJTQDeqb7puUTiacrXIZn1PtQ/640?wx_fmt=jpeg&from=appmsg" // 三星堆图片
+            },
+            {
+                day: 4,
+                title: "茂县 → 若尔盖",
+                desc: "游玩: 尕里台草原、瓦切塔林、黄河九曲落日",
+                highlight: "草原骑马、黄河夕阳",
+                distance: "400km/7h",
+                coordinates: [31.68, 103.85], // 茂县
+                nextCoordinates: [33.58, 102.96], // 若尔盖
+                zoom: 8,
+                image: "https://mmbiz.qpic.cn/sz_mmbiz_jpg/iaUibXKqnpz2aq7CPZESbaY6OY66QdbVbysic8tpAlWGK8z8fZQXjYT4SCx0TvhNhzgoyndRybpxCG7MrHgUqsuJw/640?wx_fmt=jpeg" // 若尔盖草原图片
+            },
+            {
+                day: 5,
+                title: "若尔盖 → 桑科草原",
+                desc: "游玩: 花湖、桑科草原",
+                highlight: "野花栈道、藏寨篝火",
+                distance: "250km/4h",
+                coordinates: [33.58, 102.96], // 若尔盖
+                nextCoordinates: [35.20, 102.52], // 桑科草原
+                zoom: 8,
+                image: "https://mmbiz.qpic.cn/mmbiz_jpg/25T9yV328zIG1d29zIJiajia6hOfJ8tfVkj8xA79IibsuXhk3usSrYOdLGiaSq2ibFjSV3ysib4r6SuOicawtuRxAomDg/640?wx_fmt=jpeg&from=appmsg" // 花湖图片
+            },
+            {
+                day: 6,
+                title: "拉卜楞寺 → 宝鸡",
+                desc: "游玩: 拉卜楞寺转经筒长廊",
+                highlight: "世界藏学府+祈福",
+                distance: "600km/7h",
+                coordinates: [35.20, 102.52], // 桑科草原
+                nextCoordinates: [34.37, 107.15], // 宝鸡
+                zoom: 6,
+                image: "https://mmbiz.qpic.cn/mmbiz_jpg/eiavic9JsrcfhfBSpywlCqtZpFJNsVfG3ibYTamaxkeFf2wunvPN1Q671kJ9CFhWGiasyk6uiaS1aLDPQRg1x26WGCw/640?wx_fmt=jpeg" // 拉卜楞寺图片
+            },
+            {
+                day: 7,
+                title: "宝鸡 → 西安",
+                desc: "游玩: 法门寺+大唐不夜城",
+                highlight: "汉服夜拍+不倒翁小姐姐",
+                distance: "180km/2h",
+                coordinates: [34.37, 107.15], // 宝鸡
+                nextCoordinates: [34.34, 108.94], // 西安
+                zoom: 8,
+                image: "https://mmbiz.qpic.cn/mmbiz_png/CNHTlAe24jwyWLw8zHor3nzdwdqjYSZD9l4d7lCxvJuxZxZZDxCEBddZ3EpqRVB6d0ynSFkfgibgs63jMImxib8g/640?wx_fmt=png" // 大唐不夜城图片
+            },
+            {
+                day: 8,
+                title: "西安全天",
+                desc: "游玩: 陕西历史博物馆(预约)",
+                highlight: "文创盖章",
+                distance: "市区活动",
+                coordinates: [34.34, 108.94], // 西安
+                nextCoordinates: [34.34, 108.94], // 西安
+                zoom: 12,
+                image: "https://mmecoa.qpic.cn/sz_mmecoa_jpg/26hcHDo4lH7C69gHkAFgZ5AyqfDcqK7dnPaqx1BV113uFI3RhW1vo4Dzel5KAEnrPYCSDVCvbU9ffDVgF50DcA/640?wx_fmt=jpeg&from=appmsg" // 兵马俑图片
+            },
+            {
+                day: 9,
+                title: "西安 → 返程",
+                desc: "游玩: 钟楼回民街(买手信)",
+                highlight: "旅程结束，返回广州",
+                distance: "40km/1h到机场",
+                coordinates: [34.34, 108.94], // 西安
+                nextCoordinates: [23.12, 113.26], // 广州
+                zoom: 5,
+                image: "https://mmbiz.qpic.cn/mmbiz_jpg/EicgtlNy6g6ZtOiaiauR6ibS0l7q52a6hw6gbM9KliakrDxdgHAyGd5liaVWbvGgIRjFdoBqw6V5I0hU5TmwcJgAZpKA/640?wx_fmt=jpeg" // 钟楼图片
+            }
+        ];
+
+        // 初始化地图
+        let map;
+        let currentDay = 0;
+        let isPlaying = true;
+        let playInterval;
+        let markers = [];
+        let polylines = [];
+        let isMusicPlaying = false;
+        const bgMusic = document.getElementById('bg-music');
+        let carMarker = null;
+        let movingInterval = null;
+
+        // 初始化函数
+        function initMap() {
+            // 创建地图
+            map = L.map('map').setView([28.89, 105.44], 10); // 初始位置设为泸州
+            
+            // 添加地图图层
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+            
+            // 创建汽车图标
+            const carIcon = L.divIcon({
+                className: 'car-icon',
+                iconSize: [30, 30]
+            });
+            
+            // 初始位置设为泸州
+            carMarker = L.marker([28.89, 105.44], {
+                icon: carIcon,
+                zIndexOffset: 1000
+            }).addTo(map);
+            
+            // 添加事件监听器
+            document.getElementById('play-pause').addEventListener('click', togglePlayPause);
+            document.getElementById('prev-day').addEventListener('click', prevDay);
+            document.getElementById('next-day').addEventListener('click', nextDay);
+            document.getElementById('reset').addEventListener('click', resetAnimation);
+            document.getElementById('music-control').addEventListener('click', toggleMusic);
+            document.getElementById('start-journey').addEventListener('click', startJourney);
+            
+            // 初始化音乐
+            bgMusic.volume = 0.3;
+        }
+
+        // 开始旅程函数
+        function startJourney() {
+            // 隐藏欢迎面板
+            document.getElementById('welcome-panel').style.display = 'none';
+            
+            // 添加行程路线和标记
+            createRoute();
+            
+            // 开始自动播放
+            startAutoPlay();
+            
+            // 自动播放音乐
+            playMusic();
+        }
+
+        function createRoute() {
+            // 清除现有的标记和路线
+            markers.forEach(marker => map.removeLayer(marker));
+            polylines.forEach(polyline => map.removeLayer(polyline));
+            markers = [];
+            polylines = [];
+            
+            // 为每一天创建标记和路线
+            for (let i = 0; i < itinerary.length; i++) {
+                const dayData = itinerary[i];
+                
+                // 创建标记
+                const marker = L.circleMarker(dayData.coordinates, {
+                    radius: 12,
+                    fillColor: i === currentDay ? '#00ccff' : '#ff3366',
+                    color: '#fff',
+                    weight: 3,
+                    opacity: 1,
+                    fillOpacity: 0.9,
+                    className: `day-marker ${i === currentDay ? 'active-day' : ''}`
+                }).addTo(map);
+                
+                // 添加弹出信息（包含图片）
+                const popupContent = `
+                    <div class="custom-popup">
+                        <h3>Day ${dayData.day}: ${dayData.title}</h3>
+                        <img src="${dayData.image}" class="location-image" alt="${dayData.title}">
+                        <p>${dayData.desc}</p>
+                        <p><strong>${dayData.highlight}</strong></p>
+                        <p>${dayData.distance}</p>
+                    </div>
+                `;
+                
+                marker.bindPopup(popupContent, {
+                    maxWidth: 300,
+                    className: 'custom-popup'
+                });
+                
+                markers.push(marker);
+                
+                // 创建路线
+                if (i < itinerary.length - 1) {
+                    const nextDayData = itinerary[i + 1];
+                    const polyline = L.polyline([dayData.coordinates, nextDayData.coordinates], {
+                        color: i === currentDay ? '#00ccff' : '#3399ff',
+                        weight: i === currentDay ? 5 : 3,
+                        opacity: i === currentDay ? 1 : 0.6,
+                        lineCap: 'round',
+                        dashArray: i === currentDay ? null : '10, 10'
+                    }).addTo(map);
+                    polylines.push(polyline);
+                }
+            }
+            
+            // 聚焦到当前天的位置
+            focusOnCurrentDay();
+            
+            // 更新信息面板
+            updateInfoPanel();
+            
+            // 自动打开当前地点的弹窗
+            if (markers[currentDay]) {
+                markers[currentDay].openPopup();
+            }
+            
+            // 开始移动汽车
+            moveCarToCurrentLocation();
+        }
+
+        function moveCarToCurrentLocation() {
+            // 清除之前的移动动画
+            if (movingInterval) clearInterval(movingInterval);
+            
+            const dayData = itinerary[currentDay];
+            const startPos = carMarker.getLatLng();
+            const endPos = L.latLng(dayData.coordinates);
+            
+            // 如果已经是正确位置，不需要移动
+            if (startPos.equals(endPos)) return;
+            
+            // 计算移动步数和方向
+            const steps = 50;
+            const latStep = (endPos.lat - startPos.lat) / steps;
+            const lngStep = (endPos.lng - startPos.lng) / steps;
+            
+            // 计算汽车应该指向的角度
+            const angle = Math.atan2(endPos.lng - startPos.lng, endPos.lat - startPos.lat) * 180 / Math.PI + 90;
+            carMarker._icon.style.transform = `rotate(${angle}deg)`;
+            
+            // 开始动画
+            let step = 0;
+            movingInterval = setInterval(() => {
+                step++;
+                if (step >= steps) {
+                    clearInterval(movingInterval);
+                    carMarker.setLatLng(endPos);
+                    // 到达后打开弹窗
+                    if (markers[currentDay]) {
+                        markers[currentDay].openPopup();
+                    }
+                } else {
+                    const newLat = startPos.lat + (latStep * step);
+                    const newLng = startPos.lng + (lngStep * step);
+                    carMarker.setLatLng([newLat, newLng]);
+                }
+            }, 30);
+        }
+
+        function focusOnCurrentDay() {
+            const dayData = itinerary[currentDay];
+            map.setView(dayData.coordinates, dayData.zoom, {
+                animate: true,
+                duration: 1
+            });
+            
+            // 高亮当前天的标记
+            markers.forEach((marker, index) => {
+                if (index === currentDay) {
+                    marker.setStyle({
+                        fillColor: '#00ccff',
+                        radius: 14
+                    });
+                    marker.getElement().classList.add('active-day');
+                } else {
+                    marker.setStyle({
+                        fillColor: '#ff3366',
+                        radius: 12
+                    });
+                    marker.getElement().classList.remove('active-day');
+                }
+            });
+            
+            // 高亮当前天的路线
+            polylines.forEach((polyline, index) => {
+                if (index === currentDay) {
+                    polyline.setStyle({
+                        color: '#00ccff',
+                        weight: 5,
+                        opacity: 1,
+                        dashArray: null
+                    });
+                } else {
+                    polyline.setStyle({
+                        color: '#3399ff',
+                        weight: 3,
+                        opacity: 0.6,
+                        dashArray: '10, 10'
+                    });
+                }
+            });
+        }
+
+        function updateInfoPanel() {
+            const dayData = itinerary[currentDay];
+            document.getElementById('day-title').textContent = `Day ${dayData.day}: ${dayData.title}`;
+            document.getElementById('day-desc').textContent = dayData.desc;
+            document.getElementById('day-highlight').innerHTML = `亮点: <span class="highlight-text">${dayData.highlight}</span>`;
+            document.getElementById('day-distance').innerHTML = `路程: <span class="highlight-text">${dayData.distance}</span>`;
+            
+            // 更新进度条
+            const progress = (currentDay / (itinerary.length - 1)) * 100;
+            document.getElementById('progress-bar').style.width = `${progress}%`;
+        }
+
+        function startAutoPlay() {
+            if (playInterval) clearInterval(playInterval);
+            playInterval = setInterval(() => {
+                if (isPlaying) {
+                    if (currentDay < itinerary.length - 1) {
+                        nextDay();
+                    } else {
+                        isPlaying = false;
+                        document.getElementById('play-pause').textContent = '播放';
+                    }
+                }
+            }, 5000); // 每5秒切换一天
+        }
+
+        function togglePlayPause() {
+            isPlaying = !isPlaying;
+            document.getElementById('play-pause').textContent = isPlaying ? '暂停' : '播放';
+            if (isPlaying) {
+                startAutoPlay();
+                // 点击播放时同时播放音乐
+                if (!isMusicPlaying) {
+                    playMusic();
+                }
+            }
+        }
+
+        function prevDay() {
+            if (currentDay > 0) {
+                currentDay--;
+                createRoute();
+            }
+        }
+
+        function nextDay() {
+            if (currentDay < itinerary.length - 1) {
+                currentDay++;
+                createRoute();
+            }
+        }
+
+        function resetAnimation() {
+            currentDay = 0;
+            createRoute();
+            isPlaying = false;
+            document.getElementById('play-pause').textContent = '播放';
+        }
+
+        function toggleMusic() {
+            if (isMusicPlaying) {
+                pauseMusic();
+            } else {
+                playMusic();
+            }
+        }
+
+        function playMusic() {
+            bgMusic.play().catch(e => {
+                // 处理自动播放限制
+                console.log("自动播放被阻止，需要用户交互");
+            });
+            document.getElementById('music-control').textContent = '❚❚';
+            isMusicPlaying = true;
+            // 显示音乐信息
+            const musicInfo = document.getElementById('music-info');
+            musicInfo.style.display = 'block';
+            setTimeout(() => {
+                musicInfo.style.display = 'none';
+            }, 2000);
+        }
+
+        function pauseMusic() {
+            bgMusic.pause();
+            document.getElementById('music-control').textContent = '♪';
+            isMusicPlaying = false;
+        }
+
+        // 初始化地图
+        initMap();
+    </script>
+</body>
+</html>
